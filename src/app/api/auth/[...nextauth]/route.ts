@@ -83,6 +83,7 @@ export const authOptions: AuthOptions = {
           const newUser = await User.create({
             email: user.email,
             username: uniqueUsername,
+            name: user.name,
             password: uuidv4(), // dummy
             avatar: {
               url: user.image || "",
@@ -105,6 +106,7 @@ export const authOptions: AuthOptions = {
 
       if (user && account?.provider === "credentials") {
         token.id = user.id;
+        token.name = user.name;
         token.username = user.username;
         token.role = user.role;
         token.picture = user.image;
