@@ -1,3 +1,5 @@
+// app/api/auth/[...nextauth]/route.ts
+
 import NextAuth, { AuthOptions } from "next-auth";
 import GithubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
@@ -9,6 +11,8 @@ import connectDB from "@/lib/db";
 import User from "@/model/user.model";
 import { generateOTP } from "@/utils/opt";
 import OTP from "@/model/otp.model";
+import sendMail from "@/utils/sendmailer";
+import { getOtpEmailTemplate } from "@/Emails/otp";
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -36,42 +40,46 @@ export const authOptions: AuthOptions = {
         }
 
         await connectDB();
+
         const user = await User.findOne({ email });
-
-        if (!user) {
-          throw new Error("No user found with this email");
-        }
-
-        if (user.deletedAt) {
-          throw new Error("Account is deactivated");
-        }
+        if (!user) throw new Error("No user found with this email");
+        if (user.deletedAt) throw new Error("Account is deactivated");
 
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-          throw new Error("Invalid password");
-        }
+        if (!isMatch) throw new Error("Invalid password");
 
-        // Check if OTP is already verified
+        // Check if OTP is verified
         const existingOTP = await OTP.findOne({ email, isVerified: true });
 
-        if (!existingOTP) {
-          // Generate and store OTP if not verified yet
-          const otp = generateOTP();
 
-          await OTP.findOneAndDelete({ email }); // Remove old OTP if exists
-          await OTP.create({
-            email,
-            otp,
-            isVerified: false,
-            expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 mins expiry
-          });
+        const otp = generateOTP();
 
-          // Custom error for frontend to handle
-          // throw new Error("OTP_REQUIRED");
-        }
+        // Remove any previous OTPs and create a new one
+        await OTP.findOneAndDelete({ email });
+        await OTP.create({
+          email,
+          otp,
+          isVerified: false,
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes expiry
+        });
 
-        // Clean up OTP after successful verification
-        await OTP.deleteOne({ email });
+
+        console.log("Generated OTP:", otp); // Remove in production
+
+        const emailBody = getOtpEmailTemplate(otp, user.username);
+        await sendMail({
+          subject: "OTP Verification from Surya Kumar",
+          receiver: email,
+          body: emailBody,
+        });
+
+
+        // Stop login until OTP is verified
+        // throw new Error("OTP_REQUIRED");
+
+
+        // Clean up verified OTP
+        // await OTP.deleteOne({ email });
 
         return {
           id: user._id.toString(),
@@ -97,6 +105,7 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user, account }) {
       await connectDB();
 
+      // First-time Google login: create user
       if (account && user && account.provider === "google") {
         const existingUser = await User.findOne({ email: user.email });
 
@@ -108,7 +117,7 @@ export const authOptions: AuthOptions = {
             email: user.email,
             username: uniqueUsername,
             name: user.name,
-            password: uuidv4(), // dummy
+            password: uuidv4(), // dummy password
             avatar: {
               url: user.image || "",
               public_id: "",
@@ -128,9 +137,9 @@ export const authOptions: AuthOptions = {
         }
       }
 
+      // Credentials provider
       if (user && account?.provider === "credentials") {
         token.id = user.id;
-        token.name = user.name;
         token.username = user.username;
         token.role = user.role;
         token.picture = user.image;
