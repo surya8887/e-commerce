@@ -7,6 +7,8 @@ import { v4 as uuidv4 } from "uuid";
 
 import connectDB from "@/lib/db";
 import User from "@/model/user.model";
+import { generateOTP } from "@/utils/opt";
+import OTP from "@/model/otp.model";
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -27,7 +29,7 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const { email, password} = credentials ?? {};
+        const { email, password } = credentials ?? {};
 
         if (!email || !password) {
           throw new Error("Please provide both email and password");
@@ -49,9 +51,28 @@ export const authOptions: AuthOptions = {
           throw new Error("Invalid password");
         }
 
-        
-        
-        
+        // Check if OTP is already verified
+        const existingOTP = await OTP.findOne({ email, isVerified: true });
+
+        if (!existingOTP) {
+          // Generate and store OTP if not verified yet
+          const otp = generateOTP();
+
+          await OTP.findOneAndDelete({ email }); // Remove old OTP if exists
+          await OTP.create({
+            email,
+            otp,
+            isVerified: false,
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 mins expiry
+          });
+
+          // Custom error for frontend to handle
+          // throw new Error("OTP_REQUIRED");
+        }
+
+        // Clean up OTP after successful verification
+        await OTP.deleteOne({ email });
+
         return {
           id: user._id.toString(),
           email: user.email,
