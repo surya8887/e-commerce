@@ -35,6 +35,9 @@ export async function POST(req: Request) {
 
     record.isVerified = true;
     await record.save();
+    await OTP.deleteOne({email});
+
+
 
     return NextResponse.json({ message: 'OTP verified.' }, { status: 200 });
   } catch (error) {
