@@ -27,7 +27,7 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const { email, password } = credentials ?? {};
+        const { email, password} = credentials ?? {};
 
         if (!email || !password) {
           throw new Error("Please provide both email and password");
@@ -49,6 +49,9 @@ export const authOptions: AuthOptions = {
           throw new Error("Invalid password");
         }
 
+        
+        
+        
         return {
           id: user._id.toString(),
           email: user.email,
