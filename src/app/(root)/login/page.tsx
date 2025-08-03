@@ -41,6 +41,9 @@ export default function LoginPage() {
 
   const onSubmit = async (values: z.infer<typeof signSchema>) => {
     try {
+
+      
+
       const res = await signIn("credentials", {
         email: values.email,
         password: values.password,
@@ -50,7 +53,7 @@ export default function LoginPage() {
       if (res?.error) {
         setError(res.error)
       } else {
-        router.push("/profile") // change if needed
+        router.push(`/verify-otp/${values.email}`) // change if needed
       }
     } catch (err) {
       setError("Something went wrong")
