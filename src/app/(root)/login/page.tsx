@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { email, z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Eye, EyeOff } from "lucide-react"
 import { signSchema } from "@/schemas/signInSchema"
@@ -40,10 +40,9 @@ export default function LoginPage() {
   })
 
   const onSubmit = async (values: z.infer<typeof signSchema>) => {
+    setError('')
+
     try {
-
-      
-
       const res = await signIn("credentials", {
         email: values.email,
         password: values.password,
@@ -53,7 +52,8 @@ export default function LoginPage() {
       if (res?.error) {
         setError(res.error)
       } else {
-        router.push(`/verify-otp/${values.email}`) // change if needed
+        // Redirect to OTP verification
+        router.push(`/verify-otp/${values.email}`)
       }
     } catch (err) {
       setError("Something went wrong")
@@ -133,7 +133,6 @@ export default function LoginPage() {
               variant="outline"
               className="w-full flex items-center justify-center gap-2 mt-1"
               onClick={() => signIn("google", { callbackUrl: "/profile" })}
-
             >
               <FcGoogle size={18} />
               Login with Google
