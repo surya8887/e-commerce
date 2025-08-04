@@ -54,32 +54,29 @@ export const authOptions: AuthOptions = {
 
         const otp = generateOTP();
 
-        // Remove any previous OTPs and create a new one
-        await OTP.findOneAndDelete({ email });
-        await OTP.create({
-          email,
-          otp,
-          isVerified: false,
-          expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes expiry
-        });
+        if (!existingOTP) {
+          // Remove old OTPs and create a new one
+          await OTP.deleteMany({ email });
 
+          await OTP.create({
+            email,
+            otp,
+            isVerified: false,
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+          });
 
-        console.log("Generated OTP:", otp); // Remove in production
+          const emailBody = getOtpEmailTemplate(otp, user.username);
+          await sendMail({
+            subject: "OTP Verification from Surya Kumar",
+            receiver: email,
+            body: emailBody,
+          });
 
-        const emailBody = getOtpEmailTemplate(otp, user.username);
-        await sendMail({
-          subject: "OTP Verification from Surya Kumar",
-          receiver: email,
-          body: emailBody,
-        });
+          // throw new Error("OTP sent. Please verify to continue.");
+        } else if (!existingOTP.isVerified) {
+          throw new Error("OTP verification pending.");
+        }
 
-
-        // Stop login until OTP is verified
-        // throw new Error("OTP_REQUIRED");
-
-
-        // Clean up verified OTP
-        // await OTP.deleteOne({ email });
 
         return {
           id: user._id.toString(),

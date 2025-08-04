@@ -74,7 +74,7 @@ export default function VerifyOTPPage() {
       if (!res.ok) throw new Error(data.message || 'OTP verification failed');
 
       alert('OTP verified successfully');
-      router.push('/');
+      router.push('/profile');
     } catch (err: any) {
       alert(err.message);
     } finally {
