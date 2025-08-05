@@ -45,17 +45,19 @@ export const authOptions: AuthOptions = {
         if (!user) throw new Error("No user found with this email");
         if (user.deletedAt) throw new Error("Account is deactivated");
 
+        // ✅ Check if email is verified
+        if (!user.isEmailVerified) {
+          throw new Error("Please verify your email before logging in.");
+        }
+
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) throw new Error("Invalid password");
 
-        // Check if OTP is verified
+        // ✅ OTP Flow
         const existingOTP = await OTP.findOne({ email, isVerified: true });
-
-
         const otp = generateOTP();
 
         if (!existingOTP) {
-          // Remove old OTPs and create a new one
           await OTP.deleteMany({ email });
 
           await OTP.create({
@@ -72,11 +74,11 @@ export const authOptions: AuthOptions = {
             body: emailBody,
           });
 
+          // Optional: Block login immediately after sending OTP
           // throw new Error("OTP sent. Please verify to continue.");
         } else if (!existingOTP.isVerified) {
           throw new Error("OTP verification pending.");
         }
-
 
         return {
           id: user._id.toString(),
@@ -85,7 +87,8 @@ export const authOptions: AuthOptions = {
           username: user.username,
           image: user.avatar?.url || null,
         };
-      },
+      }
+
     }),
   ],
 
